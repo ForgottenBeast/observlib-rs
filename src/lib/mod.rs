@@ -1,24 +1,20 @@
-use opentelemetry::{
-    global,
-    KeyValue,
-};
-use std::error::Error;
+use opentelemetry::global;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider,
 };
-use std::{sync::OnceLock};
-use tracing_subscriber::prelude::*;
-use tracing_subscriber::EnvFilter;
+use std::error::Error;
+use std::sync::OnceLock;
 use tracing_subscriber;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::prelude::*;
 
-
-mod metrics;
 mod logs;
+mod metrics;
 mod traces;
 
-pub use opentelemetry::KeyValue;
+pub use opentelemetry_api::KeyValue;
 
 pub struct OtelManager {
     logger: SdkLoggerProvider,
@@ -27,31 +23,34 @@ pub struct OtelManager {
 }
 
 impl OtelManager {
-    pub fn shutdown(&self) -> Result<(), Box<dyn Error + Send + Sync + 'static>>{
-    let mut shutdown_errors = Vec::new();
-    if let Err(e) = self.tracer.shutdown() {
-        shutdown_errors.push(format!("tracer provider: {e}"));
-    }
+    pub fn shutdown(&self) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+        let mut shutdown_errors = Vec::new();
+        if let Err(e) = self.tracer.shutdown() {
+            shutdown_errors.push(format!("tracer provider: {e}"));
+        }
 
-    if let Err(e) = self.meter.shutdown() {
-        shutdown_errors.push(format!("meter provider: {e}"));
-    }
+        if let Err(e) = self.meter.shutdown() {
+            shutdown_errors.push(format!("meter provider: {e}"));
+        }
 
-    if let Err(e) = self.logger.shutdown() {
-        shutdown_errors.push(format!("logger provider: {e}"));
-    }
+        if let Err(e) = self.logger.shutdown() {
+            shutdown_errors.push(format!("logger provider: {e}"));
+        }
         if !shutdown_errors.is_empty() {
-        return Err(format!(
-            "Failed to shutdown providers:{}",
-            shutdown_errors.join("\n")
-        )
-        .into());
-    }
+            return Err(format!(
+                "Failed to shutdown providers:{}",
+                shutdown_errors.join("\n")
+            )
+            .into());
+        }
         Ok(())
     }
 }
 
-fn get_resource<T: IntoIterator<Item = KeyValue>>(service_name: &'static str,attrs: T) -> Resource {
+fn get_resource<T: IntoIterator<Item = KeyValue>>(
+    service_name: &'static str,
+    attrs: T,
+) -> Resource {
     static RESOURCE: OnceLock<Resource> = OnceLock::new();
     RESOURCE
         .get_or_init(|| {
@@ -63,9 +62,12 @@ fn get_resource<T: IntoIterator<Item = KeyValue>>(service_name: &'static str,att
         .clone()
 }
 
-
-pub fn initialize_telemetry<T: IntoIterator<Item = KeyValue>>(service_name: &'static str, endpoint: &str, attributes: T) -> OtelManager {
-    let resource = get_resource(service_name,attributes);
+pub fn initialize_telemetry<T: IntoIterator<Item = KeyValue>>(
+    service_name: &'static str,
+    endpoint: &str,
+    attributes: T,
+) -> OtelManager {
+    let resource = get_resource(service_name, attributes);
     let logger_provider = logs::init_logs(resource.clone(), endpoint);
     let otel_layer = OpenTelemetryTracingBridge::new(&logger_provider);
 
