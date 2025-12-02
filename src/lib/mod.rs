@@ -1,3 +1,4 @@
+pub use opentelemetry::KeyValue;
 use opentelemetry::global;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::Resource;
@@ -6,15 +7,12 @@ use opentelemetry_sdk::{
 };
 use std::error::Error;
 use std::sync::OnceLock;
-use tracing_subscriber;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::prelude::*;
 
 mod logs;
 mod metrics;
 mod traces;
-
-pub use opentelemetry_api::KeyValue;
 
 pub struct OtelManager {
     logger: SdkLoggerProvider,

@@ -11,6 +11,7 @@ path = "src/lib/mod.rs"
 opentelemetry = { version = "0.31.0",features = ["trace", "metrics", "logs"] }
 opentelemetry-appender-tracing = "0.31.1"
 opentelemetry-otlp = {version = "0.31.0", features = ["reqwest-blocking-client", "http-proto", "trace", "metrics", "logs", "internal-logs"] }
+opentelemetry_api = "0.20.0"
 opentelemetry_sdk = {version ="0.31.0", features = ["trace", "metrics", "logs"]}
 tracing = {version = "0.1.43", features = ["std"]}
 tracing-opentelemetry = "0.32.0"
