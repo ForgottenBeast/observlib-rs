@@ -18,6 +18,8 @@ mod metrics;
 mod logs;
 mod traces;
 
+pub use opentelemetry::KeyValue;
+
 pub struct OtelManager {
     logger: SdkLoggerProvider,
     meter: SdkMeterProvider,
