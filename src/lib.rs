@@ -1,5 +1,10 @@
-pub use opentelemetry::KeyValue;
-use opentelemetry::global;
+/*!
+This crate provides a simple, easy to setup opentelemetry configuration and reexports the KeyValue and global object
+for ease if use.
+
+The Otelmanager object is here to allow graceful shutdown
+*/
+pub use opentelemetry::{KeyValue, global};
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::{
@@ -14,6 +19,7 @@ mod logs;
 mod metrics;
 mod traces;
 
+///Singleton object to have one place to call shutdown on the complete telemetry apparatus
 pub struct OtelManager {
     logger: SdkLoggerProvider,
     meter: SdkMeterProvider,
@@ -21,6 +27,8 @@ pub struct OtelManager {
 }
 
 impl OtelManager {
+
+    ///Blocking function to shutdown telemetry gracefully
     pub fn shutdown(&self) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         let mut shutdown_errors = Vec::new();
         if let Err(e) = self.tracer.shutdown() {
@@ -60,9 +68,15 @@ fn get_resource<T: IntoIterator<Item = KeyValue>>(
         .clone()
 }
 
+///library entrypoint
 pub fn initialize_telemetry<T: IntoIterator<Item = KeyValue>>(
+    ///service name used for initialization
     service_name: &'static str,
+
+    ///otlp http endpoint (example: 127.0.0.1:4318)
     endpoint: &str,
+
+    ///Resource attributes that will be added to all providers
     attributes: T,
 ) -> OtelManager {
     let resource = get_resource(service_name, attributes);
