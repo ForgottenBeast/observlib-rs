@@ -1,5 +1,4 @@
-use observlib::KeyValue;
-use opentelemetry::global;
+use observlib::{KeyValue, global};
 
 #[test]
 pub fn basic_instantiation() {
