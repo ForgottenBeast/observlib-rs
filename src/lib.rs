@@ -27,7 +27,6 @@ pub struct OtelManager {
 }
 
 impl OtelManager {
-
     ///Blocking function to shutdown telemetry gracefully
     pub fn shutdown(&self) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
         let mut shutdown_errors = Vec::new();
@@ -69,14 +68,12 @@ fn get_resource<T: IntoIterator<Item = KeyValue>>(
 }
 
 ///library entrypoint
+///service name used for initialization
+///otlp http endpoint (example: 127.0.0.1:4318)
+///Resource attributes that will be added to all providers
 pub fn initialize_telemetry<T: IntoIterator<Item = KeyValue>>(
-    ///service name used for initialization
     service_name: &'static str,
-
-    ///otlp http endpoint (example: 127.0.0.1:4318)
     endpoint: &str,
-
-    ///Resource attributes that will be added to all providers
     attributes: T,
 ) -> OtelManager {
     let resource = get_resource(service_name, attributes);
