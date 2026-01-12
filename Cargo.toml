@@ -7,12 +7,21 @@ edition = "2024"
 name = "observlib"
 path = "src/lib.rs"
 
+[features]
+default = []
+async = ["tokio"]
+
 [dependencies]
 opentelemetry = { version = "0.31.0",features = ["trace", "metrics", "logs"] }
 opentelemetry-appender-tracing = "0.31.1"
 opentelemetry-otlp = {version = "0.31.0", features = ["reqwest-blocking-client", "http-proto", "trace", "metrics", "logs", "internal-logs"] }
 opentelemetry_api = "0.20.0"
 opentelemetry_sdk = {version ="0.31.0", features = ["trace", "metrics", "logs"]}
+thiserror = "2.0"
+tokio = { version = "1.43", features = ["time"], optional = true }
 tracing = {version = "0.1.43", features = ["std"]}
 tracing-opentelemetry = "0.32.0"
 tracing-subscriber = {version = "0.3.22", features = ["env-filter","registry", "std", "fmt"] }
+
+[dev-dependencies]
+tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "time"] }

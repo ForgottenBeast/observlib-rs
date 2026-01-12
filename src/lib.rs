@@ -10,14 +10,16 @@ use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::{
     logs::SdkLoggerProvider, metrics::SdkMeterProvider, trace::SdkTracerProvider,
 };
-use std::error::Error;
 use std::sync::OnceLock;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::prelude::*;
 
+mod errors;
 mod logs;
 mod metrics;
 mod traces;
+
+pub use errors::ObservlibError;
 
 ///Singleton object to have one place to call shutdown on the complete telemetry apparatus
 pub struct OtelManager {
@@ -28,7 +30,7 @@ pub struct OtelManager {
 
 impl OtelManager {
     ///Blocking function to shutdown telemetry gracefully
-    pub fn shutdown(&self) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    pub fn shutdown(&self) -> Result<(), ObservlibError> {
         let mut shutdown_errors = Vec::new();
         if let Err(e) = self.tracer.shutdown() {
             shutdown_errors.push(format!("tracer provider: {e}"));
@@ -42,13 +44,75 @@ impl OtelManager {
             shutdown_errors.push(format!("logger provider: {e}"));
         }
         if !shutdown_errors.is_empty() {
-            return Err(format!(
-                "Failed to shutdown providers:{}",
+            return Err(ObservlibError::MultipleShutdownFailures(
                 shutdown_errors.join("\n")
-            )
-            .into());
+            ));
         }
         Ok(())
+    }
+
+    ///Async function to shutdown telemetry gracefully with timeout support
+    ///
+    /// This is useful when shutting down in async contexts (e.g., tokio runtime)
+    /// or when you need to enforce a timeout to prevent hanging on shutdown.
+    ///
+    /// # Arguments
+    /// * `timeout` - Maximum duration to wait for shutdown. If None, waits indefinitely.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use std::time::Duration;
+    /// # use observlib::{KeyValue, initialize_telemetry};
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let otel = initialize_telemetry("service", "127.0.0.1:4318", vec![]);
+    ///
+    /// // Shutdown with 5 second timeout
+    /// otel.async_shutdown(Some(Duration::from_secs(5))).await.unwrap();
+    /// # }
+    /// ```
+    #[cfg(feature = "async")]
+    pub async fn async_shutdown(
+        &self,
+        timeout: Option<std::time::Duration>,
+    ) -> Result<(), ObservlibError> {
+        let shutdown_future = async {
+            tokio::task::spawn_blocking({
+                let tracer = self.tracer.clone();
+                let meter = self.meter.clone();
+                let logger = self.logger.clone();
+                move || {
+                    let mut shutdown_errors = Vec::new();
+                    if let Err(e) = tracer.shutdown() {
+                        shutdown_errors.push(format!("tracer provider: {e}"));
+                    }
+
+                    if let Err(e) = meter.shutdown() {
+                        shutdown_errors.push(format!("meter provider: {e}"));
+                    }
+
+                    if let Err(e) = logger.shutdown() {
+                        shutdown_errors.push(format!("logger provider: {e}"));
+                    }
+                    if !shutdown_errors.is_empty() {
+                        return Err(ObservlibError::MultipleShutdownFailures(
+                            shutdown_errors.join("\n")
+                        ));
+                    }
+                    Ok(())
+                }
+            })
+            .await?
+        };
+
+        match timeout {
+            Some(duration) => {
+                tokio::time::timeout(duration, shutdown_future)
+                    .await
+                    .map_err(|_| ObservlibError::ShutdownTimeout)?
+            }
+            None => shutdown_future.await,
+        }
     }
 }
 
